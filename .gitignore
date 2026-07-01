@@ -6,3 +6,4 @@ venv/
 # Игнорируем системные папки VS Code
 .vscode/
 notes/
+.tio.tokens.json
