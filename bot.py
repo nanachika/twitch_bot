@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import twitchio
 from twitchio import eventsub
 from twitchio.ext import commands
-
+import random as rn
 load_dotenv()
 
 # Загружаем твои настройки
@@ -68,7 +68,38 @@ class ChatCommands(commands.Component):
         print("Ура! Команда !привет сработала через официальный Компонент!")
         # Отправляем сообщение, используя объект бота из конструктора (self.bot.user)
         await ctx.channel.send_message(message='Привет! DinoDance', sender=self.bot.user) # type: ignore
-
+    
+    @commands.command(name='обнять')
+    async def hug_command(self, ctx: commands.Context) -> None:
+        # 1. Проверяем, загрузился ли аккаунт бота
+        if not self.bot.user:
+            return
+        
+        chatter_list = []
+        
+        # 2. Получаем специальный объект от Твича через ID нашего бота
+        users_box = await ctx.channel.fetch_chatters(moderator=self.bot.user.id)
+        
+        # 3. Заходим в список пользователей (.users) внутри этого объекта
+        async for chatter in users_box.users:
+            # Отсеиваем самого бота, чтобы он сам себя не обнимал
+           if chatter.id != self.bot.user.id and chatter.id != ctx.chatter.id:
+                chatter_list.append(chatter)
+        
+        # 4. Если в чате никого нет, кроме бота
+        if not chatter_list:
+            await ctx.channel.send_message(
+                message=f'{ctx.chatter.name} обнимает сам себя... ::>_<::', 
+                sender=self.bot.user
+            )
+            return
+        
+        # 5. Выбираем случайного счастливчика и отправляем красивое имя в чат
+        random_user = rn.choice(chatter_list)
+        await ctx.channel.send_message(
+            message=f'{ctx.chatter.name} обнял {random_user.name} :3 DinoDance', 
+            sender=self.bot.user
+        )
 
 # 3. ТОЧКА ЗАПУСКА (Красивый асинхронный запуск, как в примере)
 def main() -> None:
