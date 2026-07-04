@@ -6,7 +6,11 @@ from dotenv import load_dotenv
 import twitchio
 from twitchio import eventsub
 from twitchio.ext import commands
+
 import random as rn
+
+import json as js
+
 load_dotenv()
 
 # Загружаем твои настройки
@@ -37,7 +41,6 @@ class TwitchBot(commands.Bot):
         )
         await self.subscribe_websocket(payload=payload, token_for=self.bot_id)
 
-        # МАГИЯ ИЗ ДОКУМЕНТАЦИИ: Насильно регистрируем компонент с командами
         await self.add_component(ChatCommands(self))
         print("Система команд успешно загружена!")
 
@@ -50,14 +53,13 @@ class TwitchBot(commands.Bot):
         if payload.chatter.id == self.bot_id:
             return
 
-        # Твой красивый двойной вывод в консоль
         print(f"[{payload.broadcaster.name}] {payload.chatter.name}: {payload.text}")
         
         # Передаем сообщение дальше, чтобы компоненты его услышали
         await super().event_message(payload)
 
 
-# 2. КОМПОНЕНТ С КОМАНДАМИ (Тут живут все твои !команды)
+# 2. КОМПОНЕНТ С КОМАНДАМИ (Тут живут все!команды)
 class ChatCommands(commands.Component):
 
     def __init__(self, bot: TwitchBot) -> None:
@@ -100,6 +102,61 @@ class ChatCommands(commands.Component):
             message=f'{ctx.chatter.name} обнял {random_user.name} :3 DinoDance', 
             sender=self.bot.user
         )
+    @commands.command(name='смерть')
+    async def count_death(self, ctx: commands.Context, amount: str='1') -> None:
+        if not self.bot.user:
+            return
+        
+        if amount == 'список':
+            with open('death.json', 'r') as f:
+                games = js.load(f)
+                
+            # 1. Создаем пустой список для записей
+            games_list = []
+            
+            # 2. Наполняем его чистыми строками (без всяких запятых на конце)
+            for game_name, death_count in games.items():
+                games_list.append(f'{game_name} - {death_count}') 
+
+            # 3. Склеиваем всё через запятую с пробелом и добавляем заголовок
+            message_text = '📋 Список смертей: ' + ', '.join(games_list)
+
+            await ctx.channel.send_message(
+                message=message_text, 
+                sender=self.bot.user
+            )
+            return
+
+        if (not ctx.chatter.is_mod) and (not ctx.chatter.is_broadcaster):
+            return
+        
+        points = 1
+        channel_info = await self.bot.fetch_channel(broadcaster_id=ctx.channel.id)
+        current_game = channel_info.game_name
+        
+        if amount.isdigit():
+            points = int(amount)
+
+        with open('death.json', 'r') as f:
+            data = js.load(f)
+            data[current_game] = data.get(current_game,0)+points
+            
+        with open('death.json', 'w') as f:
+            js.dump(data,f)
+        
+        await ctx.channel.send_message(
+            message=f'В игре: {current_game} количество смертей: {data[current_game]}, ', 
+            sender=self.bot.user
+        )
+    
+    @commands.command(name='команды')
+    async def commands(self, ctx: commands.Context) -> None:
+        if not self.bot.user:
+            return
+        all_commands = ', !'.join(self.bot.commands.keys())
+        await ctx.channel.send_message(
+            message=f'Доступные команды: !{all_commands}', 
+            sender=self.bot.user)
 
 # 3. ТОЧКА ЗАПУСКА (Красивый асинхронный запуск, как в примере)
 def main() -> None:
